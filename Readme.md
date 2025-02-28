@@ -24,6 +24,6 @@ The platform will serve as both an educational and entertainment hub, offering i
 
 
 ## Why This Project?
-This project combines gaming history with web development, making it an exciting challenge that involves both research and technical implementation. It provides an opportunity to enhance full-stack development skills using the MERN stack, improve UI/UX design for an engaging user experience, and integrate multimedia content effectively. Additionally, the project’s unique theme makes it a fun and engaging way to learn about unconventional game design and its impact on the industry.
+This project combines gaming history with web development, making it an exciting challenge that involves both research and technical implementation. It provides an opportunity to enhance full-stack development skills using the MERN stack, improve UI/UX design for an engaging user experience, and integrate multimedia content effectively.
 
 
