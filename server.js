@@ -1,5 +1,6 @@
 const express = require("express");
 const mongoose = require("mongoose");
+const env = require("dotenv").config();
 
 const app = express();
 
@@ -9,7 +10,8 @@ app.get("/ping",(request,response)=>{
 
 app.listen(8000,async ()=>{
     try {
-      await mongoose.connect("mongodb+srv://nezareeen:3YdHJ4t2eNMWwspE@cluster0.r1j0h.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")  
+      await mongoose.connect(process.env.MONGODB_URI);  
+      console.log("Connected to the Database")
     } catch (error) {
         console.log(error)
     }
