@@ -1,8 +1,12 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const env = require("dotenv").config();
+const router = require("./router");
 
 const app = express();
+
+app.use(express.json());
+app.use('/api',router);
 
 app.get("/ping",(request,response)=>{
     response.send("pong");
