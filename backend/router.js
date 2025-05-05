@@ -1,10 +1,23 @@
 const express = require('express');
 const router = express.Router();
-const {game} = require('./schema');
+const { game } = require('./schema');
 const mongoose = require('mongoose');
-const Game = require("./models/game");
 
-// Simple validation function
+// Helper function to validate MongoDB ObjectId
+const isValidObjectId = (id) => {
+    return mongoose.Types.ObjectId.isValid(id);
+};
+
+// Helper function to handle errors
+const handleError = (res, error, status = 500) => {
+    console.error('Error:', error);
+    res.status(status).json({ 
+        message: error.message || 'An error occurred',
+        error: process.env.NODE_ENV === 'development' ? error : undefined
+    });
+};
+
+// Validation function
 const validateGame = (data) => {
     const errors = [];
     const { title, release_year, genre, description, platform, image } = data;
@@ -48,111 +61,10 @@ const validateGame = (data) => {
     return errors;
 };
 
-// Helper function to validate MongoDB ObjectId
-const isValidObjectId = (id) => {
-    return mongoose.Types.ObjectId.isValid(id);
-};
-
-// Helper function to handle errors
-const handleError = (res, error, status = 500) => {
-    console.error('Error:', error);
-    res.status(status).json({ 
-        message: error.message || 'An error occurred',
-        error: process.env.NODE_ENV === 'development' ? error : undefined
-    });
-};
-
-router.post('/AddGame', async(request,response)=>{
-    try {
-        // Validate input
-        const errors = validateGame(request.body);
-        if (errors.length > 0) {
-            return response.status(400).json({
-                message: 'Validation failed',
-                errors: errors
-            });
-        }
-
-        // Create a new game instance with the request body
-        const gameData = request.body;
-        const newGame = new game(gameData);
-        
-        // Save the new game to the database
-        const savedGame = await newGame.save();
-        
-        return response.status(201).json({
-            message: "Game added successfully",
-            game: savedGame
-        });
-    } catch (error) {
-        handleError(response, error);
-    }
-});
-
-router.get('/AllGames',async(request,response)=>{
-    try {
-        const allGames = await game.find().sort({ createdAt: -1 });
-        return response.status(200).json({message:"All games fetched successfully",games:allGames});
-    } catch (error) {
-        handleError(response, error);
-    }
-});
-
-router.put('/UpdateGame/:id', async(request,response)=>{
-    try {
-        // Validate ID
-        const gameId = request.params.id;
-        if (!gameId || gameId.length !== 24) {
-            return response.status(400).json({ message: "Invalid game ID" });
-        }
-
-        // Validate input
-        const errors = validateGame(request.body);
-        if (errors.length > 0) {
-            return response.status(400).json({
-                message: 'Validation failed',
-                errors: errors
-            });
-        }
-
-        const updatedGame = await game.findByIdAndUpdate(
-            gameId,
-            request.body,
-            { new: true }
-        );
-
-        if (!updatedGame) {
-            return response.status(404).json({message:"Game not found"});
-        }
-        return response.status(200).json({message:"Game updated successfully",game:updatedGame});
-    } catch (error) {
-        handleError(response, error);
-    }
-});
-
-router.delete('/DeleteGame/:id', async(request,response)=>{
-    try {
-        // Validate ID
-        const gameId = request.params.id;
-        if (!gameId || gameId.length !== 24) {
-            return response.status(400).json({ message: "Invalid game ID" });
-        }
-
-        const deletedGame = await game.findByIdAndDelete(gameId);
-        
-        if (!deletedGame) {
-            return response.status(404).json({message:"Game not found"});
-        }
-        return response.status(200).json({message:"Game deleted successfully",game:deletedGame});
-    } catch (error) {
-        handleError(response, error);
-    }
-});
-
 // Get all games
-router.get("/games", async (req, res) => {
+router.get('/games', async (req, res) => {
     try {
-        const games = await Game.find();
+        const games = await game.find().sort({ createdAt: -1 });
         res.json(games);
     } catch (error) {
         handleError(res, error);
@@ -160,7 +72,7 @@ router.get("/games", async (req, res) => {
 });
 
 // Get a single game by ID
-router.get("/games/:id", async (req, res) => {
+router.get('/games/:id', async (req, res) => {
     try {
         const { id } = req.params;
         
@@ -168,45 +80,33 @@ router.get("/games/:id", async (req, res) => {
             return res.status(400).json({ message: 'Invalid game ID format' });
         }
 
-        const game = await Game.findById(id);
+        const foundGame = await game.findById(id);
         
-        if (!game) {
+        if (!foundGame) {
             return res.status(404).json({ message: 'Game not found' });
         }
 
-        res.json(game);
+        res.json(foundGame);
     } catch (error) {
         handleError(res, error);
     }
 });
 
 // Create a new game
-router.post("/games", async (req, res) => {
+router.post('/games', async (req, res) => {
     try {
-        const { title, description, genre, releaseDate, rating } = req.body;
-
-        // Basic validation
-        if (!title || !description || !genre) {
-            return res.status(400).json({ 
-                message: 'Title, description, and genre are required' 
+        // Validate input
+        const errors = validateGame(req.body);
+        if (errors.length > 0) {
+            return res.status(400).json({
+                message: 'Validation failed',
+                errors: errors
             });
         }
 
-        if (rating && (rating < 0 || rating > 10)) {
-            return res.status(400).json({ 
-                message: 'Rating must be between 0 and 10' 
-            });
-        }
-
-        const game = new Game({
-            title,
-            description,
-            genre,
-            releaseDate: releaseDate || new Date(),
-            rating: rating || 0
-        });
-
-        const savedGame = await game.save();
+        const newGame = new game(req.body);
+        const savedGame = await newGame.save();
+        
         res.status(201).json(savedGame);
     } catch (error) {
         handleError(res, error);
@@ -214,7 +114,7 @@ router.post("/games", async (req, res) => {
 });
 
 // Update a game
-router.put("/games/:id", async (req, res) => {
+router.put('/games/:id', async (req, res) => {
     try {
         const { id } = req.params;
         
@@ -222,18 +122,18 @@ router.put("/games/:id", async (req, res) => {
             return res.status(400).json({ message: 'Invalid game ID format' });
         }
 
-        const { title, description, genre, releaseDate, rating } = req.body;
-
-        // Basic validation
-        if (rating && (rating < 0 || rating > 10)) {
-            return res.status(400).json({ 
-                message: 'Rating must be between 0 and 10' 
+        // Validate input
+        const errors = validateGame(req.body);
+        if (errors.length > 0) {
+            return res.status(400).json({
+                message: 'Validation failed',
+                errors: errors
             });
         }
 
-        const updatedGame = await Game.findByIdAndUpdate(
+        const updatedGame = await game.findByIdAndUpdate(
             id,
-            { title, description, genre, releaseDate, rating },
+            req.body,
             { new: true, runValidators: true }
         );
 
@@ -248,7 +148,7 @@ router.put("/games/:id", async (req, res) => {
 });
 
 // Delete a game
-router.delete("/games/:id", async (req, res) => {
+router.delete('/games/:id', async (req, res) => {
     try {
         const { id } = req.params;
         
@@ -256,7 +156,7 @@ router.delete("/games/:id", async (req, res) => {
             return res.status(400).json({ message: 'Invalid game ID format' });
         }
 
-        const deletedGame = await Game.findByIdAndDelete(id);
+        const deletedGame = await game.findByIdAndDelete(id);
 
         if (!deletedGame) {
             return res.status(404).json({ message: 'Game not found' });
