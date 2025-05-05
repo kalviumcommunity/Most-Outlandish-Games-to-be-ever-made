@@ -12,7 +12,12 @@ const gameSchema = new mongoose.Schema({
         type: Number,
         required: [true, 'Release year is required'],
         min: [1950, 'Release year must be after 1950'],
-        max: [new Date().getFullYear() + 1, 'Release year cannot be in the future']
+        validate: {
+            validator: function(year) {
+                return year <= new Date().getFullYear() + 1;
+            },
+            message: 'Release year cannot be in the future'
+        }
     },
     genre: {
         type: String,

@@ -1,80 +1,33 @@
 const express = require('express');
 const router = express.Router();
 const {game} = require('./schema');
+const mongoose = require('mongoose');
 
-// Validation helper functions
-const validateGameData = (data) => {
-    const errors = [];
-    const { title, release_year, genre, description, platform, image } = data;
-
-    // Title validation
-    if (!title || typeof title !== 'string' || title.length < 2 || title.length > 100) {
-        errors.push('Title must be between 2 and 100 characters');
+// Helper function to handle MongoDB errors
+const handleMongoError = (error, res) => {
+    if (error instanceof mongoose.Error.ValidationError) {
+        return res.status(400).json({
+            message: "Validation failed",
+            errors: Object.values(error.errors).map(err => err.message)
+        });
     }
-
-    // Release year validation
-    const currentYear = new Date().getFullYear();
-    if (!release_year || typeof release_year !== 'number' || 
-        release_year < 1950 || release_year > currentYear + 1) {
-        errors.push('Release year must be between 1950 and next year');
+    if (error instanceof mongoose.Error.CastError) {
+        return res.status(400).json({
+            message: "Invalid ID format",
+            error: error.message
+        });
     }
-
-    // Genre validation
-    const validGenres = ['Action', 'Adventure', 'RPG', 'Strategy', 'Simulation', 'Sports', 
-                        'Racing', 'Puzzle', 'Fighting', 'Platformer', 'Shooter', 'Other'];
-    if (!genre || !validGenres.includes(genre)) {
-        errors.push('Invalid genre provided');
-    }
-
-    // Description validation
-    if (!description || typeof description !== 'string' || 
-        description.length < 10 || description.length > 1000) {
-        errors.push('Description must be between 10 and 1000 characters');
-    }
-
-    // Platform validation
-    const validPlatforms = ['PC', 'Xbox', 'PlayStation', 'Switch', 'Mobile', 'Other'];
-    if (!platform || !Array.isArray(platform) || platform.length === 0 || 
-        !platform.every(p => validPlatforms.includes(p))) {
-        errors.push('At least one valid platform must be provided');
-    }
-
-    // Image validation (optional)
-    if (image && typeof image === 'string' && !image.match(/^https?:\/\/.+/)) {
-        errors.push('Image must be a valid URL');
-    }
-
-    return errors;
-};
-
-const validateId = (id) => {
-    return id && id.match(/^[0-9a-fA-F]{24}$/);
+    console.error("Database error:", error);
+    return res.status(500).json({ message: "Internal server error" });
 };
 
 router.post('/AddGame', async(request,response)=>{
     try {
-        // Validate input data
-        const validationErrors = validateGameData(request.body);
-        if (validationErrors.length > 0) {
-            return response.status(400).json({
-                message: 'Validation failed',
-                errors: validationErrors
-            });
-        }
-
-        const {title,release_year,genre,description,platform,image} = request.body;
-        const newGame = new game({title,release_year,genre,description,platform,image});
+        const newGame = new game(request.body);
         await newGame.save();
         return response.status(201).json({message:"Game added successfully",game:newGame});
     } catch (error) {
-        console.error("Error adding game:", error);
-        if (error.name === 'ValidationError') {
-            return response.status(400).json({
-                message: "Validation failed",
-                errors: Object.values(error.errors).map(err => err.message)
-            });
-        }
-        return response.status(500).json({ message: "Internal server error" });
+        return handleMongoError(error, response);
     }
 });
 
@@ -90,61 +43,31 @@ router.get('/AllGames',async(request,response)=>{
 
 router.put('/UpdateGame/:id', async(request,response)=>{
     try {
-        const {id} = request.params;
-        
-        // Validate ID
-        if (!validateId(id)) {
-            return response.status(400).json({
-                message: 'Invalid game ID format'
-            });
-        }
+        const updatedGame = await game.findByIdAndUpdate(
+            request.params.id,
+            request.body,
+            { new: true, runValidators: true }
+        );
 
-        // Validate input data
-        const validationErrors = validateGameData(request.body);
-        if (validationErrors.length > 0) {
-            return response.status(400).json({
-                message: 'Validation failed',
-                errors: validationErrors
-            });
-        }
-
-        const {title,release_year,genre,description,platform,image} = request.body;
-        const updatedGame = await game.findByIdAndUpdate(id,{title,release_year,genre,description,platform,image},{new:true,runValidators:true});
-        if(!updatedGame){
+        if (!updatedGame) {
             return response.status(404).json({message:"Game not found"});
         }
         return response.status(200).json({message:"Game updated successfully",game:updatedGame});
     } catch (error) {
-        console.error("Error updating game:", error);
-        if (error.name === 'ValidationError') {
-            return response.status(400).json({
-                message: "Validation failed",
-                errors: Object.values(error.errors).map(err => err.message)
-            });
-        }
-        return response.status(500).json({ message: "Internal server error" });
+        return handleMongoError(error, response);
     }
 });
 
 router.delete('/DeleteGame/:id', async(request,response)=>{
     try {
-        const {id} = request.params;
+        const deletedGame = await game.findByIdAndDelete(request.params.id);
         
-        // Validate ID
-        if (!validateId(id)) {
-            return response.status(400).json({
-                message: 'Invalid game ID format'
-            });
-        }
-
-        const deletedGame = await game.findByIdAndDelete(id);
-        if(!deletedGame){
+        if (!deletedGame) {
             return response.status(404).json({message:"Game not found"});
         }
         return response.status(200).json({message:"Game deleted successfully",game:deletedGame});
     } catch (error) {
-        console.error("Error deleting game:", error);
-        return response.status(500).json({ message: "Internal server error" });
+        return handleMongoError(error, response);
     }
 });
 
