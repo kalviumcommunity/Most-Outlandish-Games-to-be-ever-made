@@ -2,15 +2,42 @@ const express = require('express');
 const router = express.Router();
 const { game } = require('./schema');
 
-// Simple validation function
+// Validation function
 const validateGame = (data) => {
     const errors = [];
-    if (!data.title || data.title.trim().length < 2) {
+    const { title, description, release_year, genre, platform } = data;
+
+    // Title validation
+    if (!title || title.trim().length < 2) {
         errors.push('Title is required and must be at least 2 characters long');
     }
-    if (!data.description || data.description.trim().length < 10) {
+
+    // Description validation
+    if (!description || description.trim().length < 10) {
         errors.push('Description is required and must be at least 10 characters long');
     }
+
+    // Release year validation
+    const currentYear = new Date().getFullYear();
+    if (!release_year || isNaN(release_year) || release_year < 1950 || release_year > currentYear) {
+        errors.push(`Release year must be between 1950 and ${currentYear}`);
+    }
+
+    // Genre validation
+    const validGenres = ['Action', 'Adventure', 'RPG', 'Strategy', 'Simulation', 'Sports', 
+                        'Racing', 'Puzzle', 'Fighting', 'Platformer', 'Shooter', 'Other'];
+    if (!genre || !validGenres.includes(genre)) {
+        errors.push('Genre is required and must be one of: ' + validGenres.join(', '));
+    }
+
+    // Platform validation
+    const validPlatforms = ['PC', 'Xbox', 'PlayStation', 'Switch', 'Mobile', 'Other'];
+    if (!platform || !Array.isArray(platform) || platform.length === 0) {
+        errors.push('At least one platform is required');
+    } else if (!platform.every(p => validPlatforms.includes(p))) {
+        errors.push('Platform must be one or more of: ' + validPlatforms.join(', '));
+    }
+
     return errors;
 };
 
@@ -20,7 +47,7 @@ router.get('/games', async (req, res) => {
         const games = await game.find();
         res.json(games);
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        res.status(500).json({ message: 'Internal server error' });
     }
 });
 
@@ -33,7 +60,7 @@ router.get('/games/:id', async (req, res) => {
         }
         res.json(foundGame);
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        res.status(500).json({ message: 'Internal server error' });
     }
 });
 
@@ -49,7 +76,10 @@ router.post('/games', async (req, res) => {
         const savedGame = await newGame.save();
         res.status(201).json(savedGame);
     } catch (error) {
-        res.status(400).json({ message: error.message });
+        if (error.name === 'ValidationError') {
+            return res.status(400).json({ message: 'Validation failed', errors: Object.values(error.errors).map(e => e.message) });
+        }
+        res.status(500).json({ message: 'Internal server error' });
     }
 });
 
@@ -64,30 +94,32 @@ router.put('/games/:id', async (req, res) => {
         const updatedGame = await game.findByIdAndUpdate(
             req.params.id,
             req.body,
-            { new: true }
+            { new: true, runValidators: true }
         );
         if (!updatedGame) {
             return res.status(404).json({ message: 'Game not found' });
         }
         res.json(updatedGame);
     } catch (error) {
-        res.status(400).json({ message: error.message });
+        if (error.name === 'ValidationError') {
+            return res.status(400).json({ message: 'Validation failed', errors: Object.values(error.errors).map(e => e.message) });
+        }
+        res.status(500).json({ message: 'Internal server error' });
     }
 });
 
 // Delete a game
 router.delete('/games/:id', async (req, res) => {
     try {
-        // Validate that the ID exists before attempting deletion
         const gameExists = await game.findById(req.params.id);
         if (!gameExists) {
             return res.status(404).json({ message: 'Game not found' });
         }
 
-        const deletedGame = await game.findByIdAndDelete(req.params.id);
+        await game.findByIdAndDelete(req.params.id);
         res.json({ message: 'Game deleted successfully' });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        res.status(500).json({ message: 'Internal server error' });
     }
 });
 

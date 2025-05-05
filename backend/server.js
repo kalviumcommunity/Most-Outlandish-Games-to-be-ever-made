@@ -14,11 +14,41 @@ if (!process.env.NODE_ENV) {
 
 const app = express();
 
+// Validate and parse CORS origins
+const validateOrigins = () => {
+    const defaultOrigins = ['http://localhost:5173'];
+    
+    if (!process.env.ALLOWED_ORIGINS) {
+        return defaultOrigins;
+    }
+
+    const origins = process.env.ALLOWED_ORIGINS.split(',')
+        .map(origin => origin.trim())
+        .filter(origin => {
+            // Basic URL validation
+            try {
+                new URL(origin);
+                return true;
+            } catch {
+                console.warn(`Invalid origin URL: ${origin}`);
+                return false;
+            }
+        });
+
+    // In production, ensure we have at least one valid origin
+    if (process.env.NODE_ENV === 'production' && origins.length === 0) {
+        console.error('No valid origins configured for production');
+        process.exit(1);
+    }
+
+    return origins.length > 0 ? origins : defaultOrigins;
+};
+
 // CORS configuration
 const corsOptions = {
-    origin: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : ['http://localhost:5173'],
+    origin: validateOrigins(),
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type'],
     credentials: true,
     maxAge: 86400 // 24 hours
 };
