@@ -8,13 +8,44 @@ const isValidObjectId = (id) => {
     return mongoose.Types.ObjectId.isValid(id);
 };
 
+// Helper function to sanitize input
+const sanitizeInput = (data) => {
+    const sanitized = {};
+    
+    // Sanitize strings
+    if (data.title) sanitized.title = data.title.trim().replace(/[<>]/g, '');
+    if (data.description) sanitized.description = data.description.trim().replace(/[<>]/g, '');
+    if (data.genre) sanitized.genre = data.genre.trim().replace(/[<>]/g, '');
+    if (data.image) sanitized.image = data.image.trim();
+    
+    // Sanitize arrays
+    if (data.platform && Array.isArray(data.platform)) {
+        sanitized.platform = data.platform.map(p => p.trim().replace(/[<>]/g, ''));
+    }
+    
+    // Sanitize numbers
+    if (data.release_year) {
+        const year = parseInt(data.release_year);
+        if (!isNaN(year)) sanitized.release_year = year;
+    }
+    
+    return sanitized;
+};
+
 // Helper function to handle errors
 const handleError = (res, error, status = 500) => {
+    // Log the error for debugging
     console.error('Error:', error);
-    res.status(status).json({ 
-        message: error.message || 'An error occurred',
-        error: process.env.NODE_ENV === 'development' ? error : undefined
-    });
+
+    // Create a safe error response
+    const errorResponse = {
+        message: 'An error occurred',
+        ...(process.env.NODE_ENV === 'development' && { 
+            error: error.message
+        })
+    };
+
+    res.status(status).json(errorResponse);
 };
 
 // Validation function
@@ -95,8 +126,11 @@ router.get('/games/:id', async (req, res) => {
 // Create a new game
 router.post('/games', async (req, res) => {
     try {
+        // Sanitize input
+        const sanitizedData = sanitizeInput(req.body);
+        
         // Validate input
-        const errors = validateGame(req.body);
+        const errors = validateGame(sanitizedData);
         if (errors.length > 0) {
             return res.status(400).json({
                 message: 'Validation failed',
@@ -104,7 +138,7 @@ router.post('/games', async (req, res) => {
             });
         }
 
-        const newGame = new game(req.body);
+        const newGame = new game(sanitizedData);
         const savedGame = await newGame.save();
         
         res.status(201).json(savedGame);
@@ -122,8 +156,11 @@ router.put('/games/:id', async (req, res) => {
             return res.status(400).json({ message: 'Invalid game ID format' });
         }
 
+        // Sanitize input
+        const sanitizedData = sanitizeInput(req.body);
+        
         // Validate input
-        const errors = validateGame(req.body);
+        const errors = validateGame(sanitizedData);
         if (errors.length > 0) {
             return res.status(400).json({
                 message: 'Validation failed',
@@ -133,7 +170,7 @@ router.put('/games/:id', async (req, res) => {
 
         const updatedGame = await game.findByIdAndUpdate(
             id,
-            req.body,
+            sanitizedData,
             { new: true, runValidators: true }
         );
 
