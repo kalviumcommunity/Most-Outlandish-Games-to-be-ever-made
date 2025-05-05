@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const {game} = require('./schema');
 const mongoose = require('mongoose');
+const Game = require("./models/game");
 
 // Simple validation function
 const validateGame = (data) => {
@@ -47,6 +48,20 @@ const validateGame = (data) => {
     return errors;
 };
 
+// Helper function to validate MongoDB ObjectId
+const isValidObjectId = (id) => {
+    return mongoose.Types.ObjectId.isValid(id);
+};
+
+// Helper function to handle errors
+const handleError = (res, error, status = 500) => {
+    console.error('Error:', error);
+    res.status(status).json({ 
+        message: error.message || 'An error occurred',
+        error: process.env.NODE_ENV === 'development' ? error : undefined
+    });
+};
+
 router.post('/AddGame', async(request,response)=>{
     try {
         // Validate input
@@ -70,8 +85,7 @@ router.post('/AddGame', async(request,response)=>{
             game: savedGame
         });
     } catch (error) {
-        console.error('Error adding game:', error);
-        return response.status(500).json({ message: "Internal server error" });
+        handleError(response, error);
     }
 });
 
@@ -80,8 +94,7 @@ router.get('/AllGames',async(request,response)=>{
         const allGames = await game.find().sort({ createdAt: -1 });
         return response.status(200).json({message:"All games fetched successfully",games:allGames});
     } catch (error) {
-        console.error('Error fetching games:', error);
-        return response.status(500).json({ message: "Internal server error" });
+        handleError(response, error);
     }
 });
 
@@ -113,8 +126,7 @@ router.put('/UpdateGame/:id', async(request,response)=>{
         }
         return response.status(200).json({message:"Game updated successfully",game:updatedGame});
     } catch (error) {
-        console.error('Error updating game:', error);
-        return response.status(500).json({ message: "Internal server error" });
+        handleError(response, error);
     }
 });
 
@@ -133,8 +145,126 @@ router.delete('/DeleteGame/:id', async(request,response)=>{
         }
         return response.status(200).json({message:"Game deleted successfully",game:deletedGame});
     } catch (error) {
-        console.error('Error deleting game:', error);
-        return response.status(500).json({ message: "Internal server error" });
+        handleError(response, error);
+    }
+});
+
+// Get all games
+router.get("/games", async (req, res) => {
+    try {
+        const games = await Game.find();
+        res.json(games);
+    } catch (error) {
+        handleError(res, error);
+    }
+});
+
+// Get a single game by ID
+router.get("/games/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        if (!isValidObjectId(id)) {
+            return res.status(400).json({ message: 'Invalid game ID format' });
+        }
+
+        const game = await Game.findById(id);
+        
+        if (!game) {
+            return res.status(404).json({ message: 'Game not found' });
+        }
+
+        res.json(game);
+    } catch (error) {
+        handleError(res, error);
+    }
+});
+
+// Create a new game
+router.post("/games", async (req, res) => {
+    try {
+        const { title, description, genre, releaseDate, rating } = req.body;
+
+        // Basic validation
+        if (!title || !description || !genre) {
+            return res.status(400).json({ 
+                message: 'Title, description, and genre are required' 
+            });
+        }
+
+        if (rating && (rating < 0 || rating > 10)) {
+            return res.status(400).json({ 
+                message: 'Rating must be between 0 and 10' 
+            });
+        }
+
+        const game = new Game({
+            title,
+            description,
+            genre,
+            releaseDate: releaseDate || new Date(),
+            rating: rating || 0
+        });
+
+        const savedGame = await game.save();
+        res.status(201).json(savedGame);
+    } catch (error) {
+        handleError(res, error);
+    }
+});
+
+// Update a game
+router.put("/games/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        if (!isValidObjectId(id)) {
+            return res.status(400).json({ message: 'Invalid game ID format' });
+        }
+
+        const { title, description, genre, releaseDate, rating } = req.body;
+
+        // Basic validation
+        if (rating && (rating < 0 || rating > 10)) {
+            return res.status(400).json({ 
+                message: 'Rating must be between 0 and 10' 
+            });
+        }
+
+        const updatedGame = await Game.findByIdAndUpdate(
+            id,
+            { title, description, genre, releaseDate, rating },
+            { new: true, runValidators: true }
+        );
+
+        if (!updatedGame) {
+            return res.status(404).json({ message: 'Game not found' });
+        }
+
+        res.json(updatedGame);
+    } catch (error) {
+        handleError(res, error);
+    }
+});
+
+// Delete a game
+router.delete("/games/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        if (!isValidObjectId(id)) {
+            return res.status(400).json({ message: 'Invalid game ID format' });
+        }
+
+        const deletedGame = await Game.findByIdAndDelete(id);
+
+        if (!deletedGame) {
+            return res.status(404).json({ message: 'Game not found' });
+        }
+
+        res.json({ message: 'Game deleted successfully' });
+    } catch (error) {
+        handleError(res, error);
     }
 });
 
