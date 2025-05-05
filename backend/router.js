@@ -23,9 +23,17 @@ const handleMongoError = (error, res) => {
 
 router.post('/AddGame', async(request,response)=>{
     try {
-        const newGame = new game(request.body);
-        await newGame.save();
-        return response.status(201).json({message:"Game added successfully",game:newGame});
+        // Create a new game instance with the request body
+        const gameData = request.body;
+        const newGame = new game(gameData);
+        
+        // Save the new game to the database
+        const savedGame = await newGame.save();
+        
+        return response.status(201).json({
+            message: "Game added successfully",
+            game: savedGame
+        });
     } catch (error) {
         return handleMongoError(error, response);
     }
@@ -36,16 +44,18 @@ router.get('/AllGames',async(request,response)=>{
         const allGames = await game.find().sort({ createdAt: -1 });
         return response.status(200).json({message:"All games fetched successfully",games:allGames});
     } catch (error) {
-        console.error("Error fetching games:", error);
-        return response.status(500).json({ message: "Internal server error" });
+        return handleMongoError(error, response);
     }
 });
 
 router.put('/UpdateGame/:id', async(request,response)=>{
     try {
+        const gameId = request.params.id;
+        const updateData = request.body;
+        
         const updatedGame = await game.findByIdAndUpdate(
-            request.params.id,
-            request.body,
+            gameId,
+            updateData,
             { new: true, runValidators: true }
         );
 
@@ -60,7 +70,8 @@ router.put('/UpdateGame/:id', async(request,response)=>{
 
 router.delete('/DeleteGame/:id', async(request,response)=>{
     try {
-        const deletedGame = await game.findByIdAndDelete(request.params.id);
+        const gameId = request.params.id;
+        const deletedGame = await game.findByIdAndDelete(gameId);
         
         if (!deletedGame) {
             return response.status(404).json({message:"Game not found"});
