@@ -1,32 +1,19 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import styles from './Navbar.module.css';
 
 const Navbar = () => {
   return (
-    <nav style={{
-      backgroundColor: '#333',
-      padding: '1rem',
-      marginBottom: '2rem'
-    }}>
-      <div style={{
-        maxWidth: '1200px',
-        margin: '0 auto',
-        display: 'flex',
-        gap: '2rem'
-      }}>
-        <Link to="/" style={{
-          color: 'white',
-          textDecoration: 'none',
-          fontSize: '1.2rem'
-        }}>
+    <nav className={styles.navbar}>
+      <div className={styles.container}>
+        <Link to="/" className={styles.link}>
           Home
         </Link>
-        <Link to="/games" style={{
-          color: 'white',
-          textDecoration: 'none',
-          fontSize: '1.2rem'
-        }}>
+        <Link to="/games" className={styles.link}>
           Games
+        </Link>
+        <Link to="/add-game" className={styles.link}>
+          Add Game
         </Link>
       </div>
     </nav>
