@@ -7,64 +7,77 @@ const fetchAllGames = async () => {
     console.log("Fetching games from API...");
     const response = await fetch("http://localhost:8000/api/AllGames");
     if (!response.ok) {
-      throw new Error("Failed to fetch games");
+      throw new Error(`Failed to fetch games: ${response.status} ${response.statusText}`);
     }
     const data = await response.json();
     console.log("Received data from API:", data);
     return data;
   } catch (error) {
     console.error("Error fetching games:", error);
-    return null;
+    throw error;
   }
 };
 
 const GamesList = () => {
   const [games, setGames] = useState([]);
   const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const loadGames = async () => {
       try {
+        setLoading(true);
         const data = await fetchAllGames();
-        console.log("Data received in component:", data);
         if (data && data.games) {
-          console.log("Setting games state with:", data.games);
           setGames(data.games);
+          setError(null);
         } else {
-          console.log("No games data found in response");
-          setError("Failed to load games");
+          setError("No games data found in response");
         }
       } catch (error) {
         console.error("Error in loadGames:", error);
-        setError("An error occurred while fetching games");
+        setError(error.message || "An error occurred while fetching games");
+      } finally {
+        setLoading(false);
       }
     };
     loadGames();
   }, []);
 
-  console.log("Current games state:", games);
+  if (loading) {
+    return (
+      <div style={{ padding: '20px' }}>
+        <h1>Games List</h1>
+        <p>Loading games...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ padding: '20px' }}>
+        <h1>Games List</h1>
+        <p style={{ color: "red" }}>{error}</p>
+      </div>
+    );
+  }
 
   return (
     <div style={{ padding: '20px' }}>
       <h1>Games List</h1>
-      {error ? (
-        <p style={{ color: "red" }}>{error}</p>
-      ) : games.length > 0 ? (
+      {games.length > 0 ? (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
-          {games.map((game) => {
-            console.log("Rendering game:", game);
-            return (
-              <GameCard
-                key={game._id}
-                title={game.title}
-                description={`${game.genre} game released in ${game.release_year}. Available on: ${game.platform.join(', ')}`}
-                image={game.image || 'https://via.placeholder.com/300'}
-              />
-            );
-          })}
+          {games.map((game) => (
+            <GameCard
+              key={game._id}
+              title={game.title}
+              description={`${game.genre} game released in ${game.release_year}. ${game.description}`}
+              image="https://via.placeholder.com/300"
+            />
+          ))}
         </div>
       ) : (
-        <p>Loading games...</p>
+        <p>No games found.</p>
       )}
     </div>
   );

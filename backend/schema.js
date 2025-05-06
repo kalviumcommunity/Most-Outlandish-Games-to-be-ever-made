@@ -1,12 +1,12 @@
 const mongoose = require('mongoose');
 
 const gameSchema = new mongoose.Schema({
-    title:{type:String,required:true},
-    release_year:{type:Number,required:true},
-    genre:{type:String,required:true},
-    description:{type:String,required:true},
+    title: String,
+    release_year: Number,
+    genre: String,
+    description: String
 });
 
-const game = mongoose.model('game',gameSchema);
+const game = mongoose.model('game', gameSchema);
 
 module.exports = {game};
