@@ -1,24 +1,34 @@
 const express = require("express");
 const mongoose = require("mongoose");
-const env = require("dotenv").config();
+require("dotenv").config();
 const router = require("./router");
 const cors = require("cors");
+const userRouter = require("./userRouter");
 
+const PORT = process.env.PORT || 8000;
 const app = express();
 
+// Middleware
 app.use(cors());
 app.use(express.json());
-app.use('/api',router);
 
-app.get("/ping",(request,response)=>{
+// Routes
+app.use('/api', router);
+app.use('/user', userRouter);
+
+app.get("/ping", (request, response) => {
     response.send("pong");
-})
+});
 
-app.listen(8000,async ()=>{
-    try {
-      await mongoose.connect(process.env.MONGODB_URI);  
-      console.log("Connected to the Database")
-    } catch (error) {
-        console.log(error)
-    }
-})
+// MongoDB Connection and Server Start
+mongoose.connect(process.env.MONGODB_URI)
+    .then(() => {
+        console.log("Connected to MongoDB");
+        app.listen(PORT, () => {
+            console.log(`Server is running on port ${PORT}`);
+        });
+    })
+    .catch((error) => {
+        console.error("MongoDB connection error:", error);
+        process.exit(1);
+    });

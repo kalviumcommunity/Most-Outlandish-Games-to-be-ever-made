@@ -24,6 +24,12 @@ const AddGame = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const userData = JSON.parse(localStorage.getItem("user-asap"));
+    if (!userData || !userData._id) {
+      setError("Please login first");
+      navigate('/login');
+      return;
+    }
     setError('');
     setLoading(true);
 
@@ -33,7 +39,10 @@ const AddGame = () => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({
+          ...formData,
+          userId: userData._id
+        })
       });
 
       const data = await response.json();

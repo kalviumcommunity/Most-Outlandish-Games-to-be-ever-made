@@ -15,6 +15,15 @@ const Navbar = () => {
         <Link to="/add-game" className={styles.link}>
           Add Game
         </Link>
+        <Link to="/login" className={styles.link}>
+          Login
+        </Link>
+        <Link to="/register" className={styles.link}>
+          Sign Up
+        </Link>
+        <Link to="/games-by-user" className={styles.link}>
+          Games By User
+        </Link>
       </div>
     </nav>
   );
